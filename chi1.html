@@ -269,7 +269,7 @@
       animation: popAndFade 1.5s ease-out forwards;
     }
 
-    /* 2. 左側：遙控器 */
+    /* 2. 遙控器 */
     .remote-control {
       width: 100%;
       max-width: 320px;
@@ -340,60 +340,6 @@
       box-shadow: 0 4px 0 #6e3519;
     }
 
-    /* 3. 右側：節目表 */
-    .program-guide {
-      width: 100%;
-      max-width: 650px;
-      order: 3; /* 手機版排在最下方 */
-    }
-
-    .guide-title {
-      font-weight: bold;
-      margin-bottom: 12px;
-      color: #00d2d3;
-      border-bottom: 2px solid #3d3f58;
-      padding-bottom: 8px;
-    }
-
-    .channel-list {
-      list-style: none;
-    }
-
-    .channel-item {
-      display: flex;
-      align-items: center;
-      padding: 10px 12px;
-      margin-bottom: 8px;
-      background: #3d3f58;
-      border-radius: 6px;
-      cursor: pointer;
-      transition: background 0.2s;
-      touch-action: manipulation;
-    }
-
-    .channel-item:active {
-      background: #54577c;
-    }
-
-    .channel-item.active {
-      outline: 2px solid #fff;
-    }
-
-    .channel-num {
-      padding: 4px 8px;
-      border-radius: 4px;
-      margin-right: 12px;
-      font-size: 0.85rem;
-      font-weight: bold;
-      white-space: nowrap;
-      flex-shrink: 0;
-    }
-
-    .channel-name {
-      font-size: 0.95rem;
-      line-height: 1.3;
-    }
-
     /* 平板與電腦大螢幕樣式排版 */
     @media (min-width: 850px) {
       body {
@@ -410,10 +356,6 @@
       .tv-section {
         order: 2;
         width: auto;
-      }
-      .program-guide {
-        width: 300px;
-        order: 3;
       }
       .tv-channel-title {
         font-size: 1.3rem;
@@ -433,7 +375,7 @@
   <h1>模擬觀看電視節目</h1>
 
   <div class="container">
-    <!-- 電視機 (手機版優先置頂，電腦版在中間) -->
+    <!-- 電視機 -->
     <div class="tv-section">
       <div class="question-bar">
         <span>你想睇咩電視節目？</span>
@@ -479,13 +421,6 @@
         <button class="btn color-9" onclick="pressNumber(9)">9</button>
       </div>
     </div>
-
-    <!-- 節目表 -->
-    <div class="panel program-guide">
-      <div class="guide-title">節目表</div>
-      <ul class="channel-list" id="channelList">
-      </ul>
-    </div>
   </div>
 
   <script>
@@ -509,7 +444,6 @@
     const tvChannelTitle = document.getElementById('tvChannelTitle');
     const watchLinkBtn = document.getElementById('watchLinkBtn');
     const remoteDisplay = document.getElementById('remoteDisplay');
-    const channelList = document.getElementById('channelList');
     const feedbackResult = document.getElementById('feedbackResult');
     const bigEmojiPop = document.getElementById('bigEmojiPop');
 
@@ -546,25 +480,6 @@
       }, 3000);
     }
 
-    function initProgramGuide() {
-      channelList.innerHTML = '';
-      for (let num in channels) {
-        const li = document.createElement('li');
-        li.className = `channel-item ${num == currentChannel ? 'active' : ''}`;
-        li.id = `ch-item-${num}`;
-        li.onclick = () => {
-          if (!isPowerOn) togglePower();
-          switchChannel(parseInt(num));
-        };
-
-        li.innerHTML = `
-          <span class="channel-num color-${num}">CH ${num.padStart(2, '0')}</span>
-          <span class="channel-name">${channels[num].name}</span>
-        `;
-        channelList.appendChild(li);
-      }
-    }
-
     function togglePower() {
       isPowerOn = !isPowerOn;
       if (isPowerOn) {
@@ -595,17 +510,7 @@
       // 更新電視畫面內的頻道名稱與 YouTube 外部連結
       tvChannelTitle.textContent = `CH ${num.toString().padStart(2, '0')}: ${chData.name}`;
       watchLinkBtn.href = `https://www.youtube.com/watch?v=${chData.videoId}`;
-
-      document.querySelectorAll('.channel-item').forEach(item => {
-        item.classList.remove('active');
-      });
-      const activeItem = document.getElementById(`ch-item-${num}`);
-      if (activeItem) {
-        activeItem.classList.add('active');
-      }
     }
-
-    initProgramGuide();
   </script>
 </body>
 </html>
