@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>捐贈</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Canvas Confetti for winning celebration effect -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        /* 基礎樣式與佈局整合 */
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            /* 標楷體 */
+            font-family: "標楷體", "BiauKai", "DFKai-SB", "KaiTi", serif;
+            background: linear-gradient(135deg, #e0f2fe 0%, #fef3c7 100%);
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+        }
+
+        /* 主遊戲視窗封裝 (全螢幕) */
+        .game-wrapper {
+            flex: 1;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            overflow-y: auto;
+            max-height: 100vh;
+        }
+
+        /* 拖拉相關動畫與效果 */
+        .draggable-item {
+            touch-action: none;
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            cursor: grab;
+        }
+
+        .draggable-item:active, .is-dragging {
+            cursor: grabbing;
+            transform: scale(1.1) rotate(5deg);
+            z-index: 50;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.25);
+        }
+
+        .drop-zone {
+            transition: all 0.25s ease;
+        }
+
+        .drop-zone.drag-over {
+            transform: scale(1.06);
+            border-color: #3b82f6;
+            background-color: #eff6ff;
+            box-shadow: 0 0 25px rgba(59, 130, 246, 0.4);
+        }
+
+        /* 答對時箱子震動/彈跳效果 */
+        @keyframes bounce-box {
+            0%, 100% { transform: scale(1); }
+            30% { transform: scale(1.15) rotate(-3deg); }
+            60% { transform: scale(0.95) rotate(3deg); }
+        }
+
+        .animate-bounce-box {
+            animation: bounce-box 0.6s ease-in-out;
+        }
+
+        /* 答錯時震動效果 */
+        @keyframes shake-box {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-10px); }
+            40%, 80% { transform: translateX(10px); }
+        }
+
+        .animate-shake-box {
+            animation: shake-box 0.4s ease-in-out;
+        }
+
+        /* 浮動浮雕按鈕 */
+        .btn-3d {
+            transition: all 0.1s ease;
+            box-shadow: 0 6px 0 rgba(0, 0, 0, 0.15);
+        }
+        .btn-3d:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 rgba(0, 0, 0, 0.15);
+        }
+
+        /* 手機板響應式調整 */
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            .game-wrapper {
+                max-height: none;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 主遊戲內容區 (全螢幕置中) -->
+    <div class="game-wrapper max-w-7xl mx-auto w-full">
+        
+        <!-- 頂部標題與功能列 -->
+        <header class="max-w-6xl mx-auto w-full bg-white/80 backdrop-blur-md rounded-3xl p-4 shadow-lg border-4 border-white mb-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center space-x-3 w-full sm:w-auto">
+                <div class="bg-amber-400 p-3 rounded-2xl text-3xl sm:text-4xl shadow-inner cursor-pointer shrink-0" onclick="speakText('捐贈小幫手。捐贈物品時，要放入啱嘅捐贈箱！')" title="點擊發音">
+                    🎁
+                </div>
+                <div>
+                    <h1 class="text-2xl sm:text-3xl font-black text-slate-800 flex items-center gap-2">
+                        捐贈小幫手
+                    </h1>
+                    <p class="text-sm sm:text-base font-bold text-slate-500">捐贈物品時，要放入啱嘅捐贈箱！</p>
+                </div>
+            </div>
+
+            <!-- 觸發「捐贈」解釋 Modal 的互動按鈕 -->
+            <button id="btn-explain-donation" class="btn-3d bg-sky-100 hover:bg-sky-200 border-4 border-sky-300 rounded-2xl p-3 px-6 flex items-center gap-3 w-full sm:w-auto text-sky-900 shadow-sm cursor-pointer transition">
+                <span class="text-3xl">💡</span>
+                <div class="text-left">
+                    <span class="font-black text-base sm:text-lg text-sky-800 block">咩係捐贈？</span>
+                    <span class="text-xs sm:text-sm text-sky-600 font-bold block">👉 撳入嚟啦！</span>
+                </div>
+            </button>
+
+            <div class="flex items-center justify-end w-full sm:w-auto">
+                <!-- 進度/得分 (加大) -->
+                <div class="bg-amber-100 border-4 border-amber-300 rounded-3xl px-5 py-2 flex items-center space-x-3">
+                    <span class="text-2xl">⭐</span>
+                    <span id="score-display" class="font-black text-amber-800 text-xl sm:text-2xl">0 / 0</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- 主要遊戲區域 -->
+        <main class="max-w-6xl mx-auto w-full flex-1 flex flex-col justify-between gap-6">
+
+            <!-- 上方：待捐贈物品區 (放大了物品尺寸) -->
+            <section class="bg-white/90 backdrop-blur-md rounded-3xl p-5 shadow-xl border-4 border-amber-300">
+                <div class="flex justify-between items-center mb-3">
+                    <h2 class="text-lg sm:text-xl font-black text-amber-900 flex items-center gap-2">
+                        📦 請揀出物品，拉落下面嘅捐贈箱：
+                    </h2>
+                </div>
+
+                <!-- 物品列表區塊 (加大最小高度和間距) -->
+                <div id="items-container" class="min-h-[160px] sm:min-h-[180px] flex flex-wrap items-center justify-center gap-4 sm:gap-6 p-4 bg-amber-50/50 rounded-2xl border-4 border-dashed border-amber-300">
+                    <!-- 動態注入可拖拉物品 -->
+                </div>
+            </section>
+
+            <!-- 下方：捐贈箱區塊 (固定為2格) -->
+            <section id="boxes-container" class="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 my-auto">
+                <!-- 動態注入捐贈箱 -->
+            </section>
+
+        </main>
+
+        <!-- 1. 「捐贈」詳細解釋 彈出 Modal  -->
+        <div id="donation-modal" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-200">
+            <div id="donation-card" class="bg-white rounded-[2rem] p-8 sm:p-10 max-w-lg w-11/12 text-center shadow-2xl border-8 border-sky-300 transform scale-90 transition-all duration-200 relative">
+                <!-- 關閉按鈕 -->
+                <button id="btn-close-donation" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 font-black text-3xl w-10 h-10 rounded-full flex items-center justify-center bg-slate-100">✖</button>
+                
+                <div class="w-20 h-20 bg-sky-100 text-sky-600 rounded-full flex items-center justify-center text-5xl mx-auto mb-4 shadow-inner">
+                    💖
+                </div>
+                
+                <h3 class="text-3xl sm:text-4xl font-black text-sky-900 mb-4">
+                    捐贈分享快樂！
+                </h3>
+                
+                <div class="bg-sky-50 border-4 border-sky-200 rounded-3xl p-5 mb-6 text-left">
+                    <p class="text-xl sm:text-2xl font-black text-sky-800 leading-relaxed mb-3">
+                        把我們多出來的玩具和衣服，捐贈給有需要的人。
+                    </p>
+                    <p class="text-base sm:text-lg font-bold text-sky-600">
+                        大家一起分享，會變得更加快樂！
+                    </p>
+                </div>
+
+                <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                    <button onclick="speakText('捐贈即係將自己多出嚟嘅玩具同衣服，俾其他有需要嘅人，大家一齊開心！')" class="btn-3d flex-1 py-4 bg-sky-500 hover:bg-sky-600 text-white font-black rounded-2xl text-xl shadow-md flex items-center justify-center gap-2">
+                        <span>🔊</span> 聽聽看
+                    </button>
+                    <button id="btn-confirm-donation" class="btn-3d flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-2xl text-xl shadow-md">
+                        知道啦！👍
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. 答對/答錯視覺彈窗 -->
+        <div id="feedback-modal" class="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex items-center justify-center hidden opacity-0 transition-opacity duration-200 pointer-events-none">
+            <div id="feedback-card" class="bg-white rounded-[2rem] p-8 sm:p-10 max-w-sm w-11/12 text-center shadow-2xl border-8 transform scale-90 transition-all duration-200">
+                <div id="feedback-icon" class="text-7xl sm:text-8xl mb-4 animate-bounce">🎉</div>
+                <h3 id="feedback-title" class="text-3xl sm:text-4xl font-black mb-3">答對了！</h3>
+                <p id="feedback-msg" class="text-slate-600 font-bold mb-6 text-lg sm:text-xl">你好叻，成功捐贈物資！</p>
+                <button id="btn-close-feedback" class="btn-3d w-full py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-2xl text-xl shadow-lg">
+                    繼續玩 ➔
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        /* ==========================================================================
+           1. 音效與廣東話語音模組 (Web Audio API & Web Speech API)
+           ========================================================================== */
+
+        const AudioFX = {
+            ctx: null,
+            init() {
+                if (!this.ctx) {
+                    const AudioContext = window.AudioContext || window.webkitAudioContext;
+                    this.ctx = new AudioContext();
+                }
+            },
+            playSuccess() {
+                this.init();
+                const now = this.ctx.currentTime;
+                
+                const notes = [523.25, 659.25, 783.99, 1046.50];
+                notes.forEach((freq, idx) => {
+                    const osc = this.ctx.createOscillator();
+                    const gain = this.ctx.createGain();
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(freq, now + idx * 0.1);
+                    
+                    gain.gain.setValueAtTime(0.3, now + idx * 0.1);
+                    gain.gain.exponentialRampToValueAtTime(0.001, now + idx * 0.1 + 0.3);
+
+                    osc.connect(gain);
+                    gain.connect(this.ctx.destination);
+
+                    osc.start(now + idx * 0.1);
+                    osc.stop(now + idx * 0.1 + 0.3);
+                });
+            },
+            playError() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(250, now);
+                osc.frequency.setValueAtTime(200, now + 0.2);
+
+                gain.gain.setValueAtTime(0.3, now);
+                gain.gain.linearRampToValueAtTime(0.001, now + 0.4);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.4);
+            },
+            playPop() {
+                this.init();
+                const now = this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(400, now);
+                osc.frequency.exponentialRampToValueAtTime(800, now + 0.05);
+
+                gain.gain.setValueAtTime(0.2, now);
+                gain.gain.linearRampToValueAtTime(0.01, now + 0.05);
+
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+
+                osc.start(now);
+                osc.stop(now + 0.05);
+            }
+        };
+
+        function speakText(text) {
+            if (!('speechSynthesis' in window)) return;
+
+            window.speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.lang = 'zh-HK';
+            utterance.rate = 0.9;
+            utterance.pitch = 1.2;
+
+            const voices = window.speechSynthesis.getVoices();
+            const hkVoice = voices.find(v => v.lang === 'zh-HK' || v.lang.includes('HK') || v.name.includes('Cantonese'));
+            if (hkVoice) {
+                utterance.voice = hkVoice;
+            }
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        if ('speechSynthesis' in window) {
+            window.speechSynthesis.onvoiceschanged = () => {
+                window.speechSynthesis.getVoices();
+            };
+        }
+
+        /* ==========================================================================
+           2. 遊戲資料庫定義 (只保留玩具和衣服)
+           ========================================================================== */
+
+        const CATEGORIES_DB = {
+            toys: {
+                id: 'toys',
+                name: '🧸玩具',
+                speech: '玩具箱',
+                icon: '🧸',
+                color: 'bg-amber-100 border-amber-300 text-amber-800',
+                headerColor: 'bg-amber-500 text-white',
+                items: [
+                    { id: 't1', name: '毛公仔', icon: '🧸', category: 'toys' },
+                    { id: 't2', name: '圖書', icon: '📚', category: 'toys' },
+                    { id: 't3', name: '積木', icon: '🧩', category: 'toys' },
+                    { id: 't4', name: '玩具車', icon: '🚗', category: 'toys' }
+                ]
+            },
+            clothes: {
+                id: 'clothes',
+                name: '👕衣服',
+                speech: '衣服箱',
+                icon: '👕',
+                color: 'bg-rose-100 border-rose-300 text-rose-800',
+                headerColor: 'bg-rose-500 text-white',
+                items: [
+                    { id: 'c1', name: '外套', icon: '🧥', category: 'clothes' },
+                    { id: 'c2', name: '上衣', icon: '👕', category: 'clothes' },
+                    { id: 'c3', name: '褲子', icon: '👖', category: 'clothes' },
+                    { id: 'c4', name: '帽子', icon: '🧢', category: 'clothes' }
+                ]
+            }
+        };
+
+        let gameState = {
+            selectedCategories: ['toys', 'clothes'],
+            itemCount: 4,
+            showLabels: true,
+            currentItems: [],
+            totalScore: 0,
+            completedCount: 0
+        };
+
+        /* ==========================================================================
+           3. UI 渲染邏輯
+           ========================================================================== */
+
+        const DOM = {
+            itemsContainer: document.getElementById('items-container'),
+            boxesContainer: document.getElementById('boxes-container'),
+            scoreDisplay: document.getElementById('score-display'),
+            btnExplainDonation: document.getElementById('btn-explain-donation'),
+            donationModal: document.getElementById('donation-modal'),
+            donationCard: document.getElementById('donation-card'),
+            btnCloseDonation: document.getElementById('btn-close-donation'),
+            btnConfirmDonation: document.getElementById('btn-confirm-donation'),
+            feedbackModal: document.getElementById('feedback-modal'),
+            feedbackCard: document.getElementById('feedback-card'),
+            feedbackIcon: document.getElementById('feedback-icon'),
+            feedbackTitle: document.getElementById('feedback-title'),
+            feedbackMsg: document.getElementById('feedback-msg'),
+            btnCloseFeedback: document.getElementById('btn-close-feedback')
+        };
+
+        function initGame() {
+            gameState.completedCount = 0;
+            gameState.currentItems = generateRandomItems();
+            gameState.totalScore = gameState.currentItems.length;
+
+            updateScoreDisplay();
+            renderBoxes();
+            renderItems();
+        }
+
+        function generateRandomItems() {
+            let pool = [];
+            gameState.selectedCategories.forEach(catId => {
+                if (CATEGORIES_DB[catId]) {
+                    pool.push(...CATEGORIES_DB[catId].items);
+                }
+            });
+
+            pool = pool.sort(() => 0.5 - Math.random());
+            
+            const result = [];
+            const usedCategories = new Set();
+
+            for (let catId of gameState.selectedCategories) {
+                if (result.length >= gameState.itemCount) break;
+                const item = pool.find(i => i.category === catId && !result.includes(i));
+                if (item) {
+                    result.push(item);
+                    usedCategories.add(catId);
+                }
+            }
+
+            for (let item of pool) {
+                if (result.length >= gameState.itemCount) break;
+                if (!result.includes(item)) {
+                    result.push(item);
+                }
+            }
+
+            return result.sort(() => 0.5 - Math.random());
+        }
+
+        function updateScoreDisplay() {
+            DOM.scoreDisplay.textContent = `${gameState.completedCount} / ${gameState.totalScore}`;
+        }
+
+        function renderBoxes() {
+            DOM.boxesContainer.innerHTML = '';
+            
+            gameState.selectedCategories.forEach(catId => {
+                const cat = CATEGORIES_DB[catId];
+                if (!cat) return;
+
+                const boxEl = document.createElement('div');
+                boxEl.className = `drop-zone border-[6px] border-dashed ${cat.color} rounded-[2rem] p-4 flex flex-col items-center justify-between min-h-[220px] sm:min-h-[260px] relative overflow-hidden shadow-lg`;
+                boxEl.dataset.category = cat.id;
+
+                boxEl.innerHTML = `
+                    <div class="w-full ${cat.headerColor} rounded-2xl py-2 px-4 flex items-center justify-center shadow-md cursor-pointer" onclick="speakText('${cat.speech}')">
+                        <span class="font-black text-xl sm:text-2xl flex items-center gap-2">
+                            ${cat.name}
+                        </span>
+                    </div>
+
+                    <div class="box-drop-area flex-1 w-full flex flex-col items-center justify-center my-3 pointer-events-none">
+                        <div class="text-7xl sm:text-8xl transform transition duration-300 drop-shadow-lg box-icon">
+                            📦
+                        </div>
+                    </div>
+
+                    <div class="w-full bg-white/90 rounded-xl py-2 text-center text-base sm:text-lg font-black text-slate-700 border-2 border-slate-200">
+                        裝了: <span class="collected-count text-indigo-600 text-xl">0</span> 個
+                    </div>
+                `;
+
+                DOM.boxesContainer.appendChild(boxEl);
+            });
+
+            setupDropZones();
+        }
+
+        function renderItems() {
+            DOM.itemsContainer.innerHTML = '';
+
+            if (gameState.currentItems.length === 0) {
+                DOM.itemsContainer.innerHTML = `
+                    <div class="text-center py-8 text-emerald-600 font-black text-2xl sm:text-3xl animate-bounce">
+                        🎉 太好了！完成！
+                    </div>
+                `;
+                return;
+            }
+
+            gameState.currentItems.forEach((item) => {
+                const itemEl = document.createElement('div');
+                itemEl.className = `draggable-item bg-white border-4 border-amber-300 rounded-[1.5rem] p-3 flex flex-col items-center justify-center shadow-lg hover:shadow-xl transition-transform w-28 h-28 sm:w-36 sm:h-36 select-none`;
+                itemEl.draggable = true;
+                itemEl.dataset.itemId = item.id;
+                itemEl.dataset.category = item.category;
+                itemEl.dataset.name = item.name;
+
+                itemEl.innerHTML = `
+                    <div class="text-5xl sm:text-6xl pointer-events-none mb-2 drop-shadow-sm">${item.icon}</div>
+                    ${gameState.showLabels ? `<span class="text-base sm:text-lg font-black text-slate-700 pointer-events-none truncate w-full text-center">${item.name}</span>` : ''}
+                `;
+
+                itemEl.addEventListener('click', () => {
+                    if (!itemEl.classList.contains('is-dragging')) {
+                        AudioFX.playPop();
+                        speakText(item.name);
+                    }
+                });
+
+                DOM.itemsContainer.appendChild(itemEl);
+            });
+
+            setupDraggables();
+        }
+
+        /* ==========================================================================
+           4. 「捐贈」解釋彈出視窗 (Modal) 邏輯
+           ========================================================================== */
+
+        function openDonationModal() {
+            AudioFX.playPop();
+            DOM.donationModal.classList.remove('hidden');
+            setTimeout(() => {
+                DOM.donationModal.classList.remove('opacity-0');
+                DOM.donationCard.classList.remove('scale-90');
+            }, 10);
+            speakText('捐贈分享快樂！把我們多出來的玩具和衣服，捐贈給有需要的人。大家一起分享，會變得更加快樂！');
+        }
+
+        function closeDonationModal() {
+            DOM.donationModal.classList.add('opacity-0');
+            DOM.donationCard.classList.add('scale-90');
+            setTimeout(() => {
+                DOM.donationModal.classList.add('hidden');
+            }, 200);
+        }
+
+        DOM.btnExplainDonation.addEventListener('click', openDonationModal);
+        DOM.btnCloseDonation.addEventListener('click', closeDonationModal);
+        DOM.btnConfirmDonation.addEventListener('click', closeDonationModal);
+
+        /* ==========================================================================
+           5. Touch & Mouse 雙模拖拉引擎 (Drag & Drop Engine)
+           ========================================================================== */
+
+        let activeDraggedEl = null;
+        let touchCloneEl = null;
+        let touchOffsetX = 0;
+        let touchOffsetY = 0;
+
+        function setupDraggables() {
+            const items = document.querySelectorAll('.draggable-item');
+
+            items.forEach(item => {
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragend', handleDragEnd);
+
+                item.addEventListener('touchstart', handleTouchStart, { passive: false });
+                item.addEventListener('touchmove', handleTouchMove, { passive: false });
+                item.addEventListener('touchend', handleTouchEnd, { passive: false });
+            });
+        }
+
+        function handleDragStart(e) {
+            activeDraggedEl = this;
+            this.classList.add('is-dragging');
+            e.dataTransfer.setData('text/plain', this.dataset.itemId);
+            AudioFX.playPop();
+            speakText(this.dataset.name);
+        }
+
+        function handleDragEnd() {
+            this.classList.remove('is-dragging');
+            activeDraggedEl = null;
+        }
+
+        function setupDropZones() {
+            const zones = document.querySelectorAll('.drop-zone');
+
+            zones.forEach(zone => {
+                zone.addEventListener('dragover', (e) => {
+                    e.preventDefault();
+                    zone.classList.add('drag-over');
+                });
+
+                zone.addEventListener('dragleave', () => {
+                    zone.classList.remove('drag-over');
+                });
+
+                zone.addEventListener('drop', (e) => {
+                    e.preventDefault();
+                    zone.classList.remove('drag-over');
+                    if (activeDraggedEl) {
+                        checkItemPlacement(activeDraggedEl, zone);
+                    }
+                });
+            });
+        }
+
+        function handleTouchStart(e) {
+            const touch = e.touches[0];
+            activeDraggedEl = this;
+
+            const rect = this.getBoundingClientRect();
+            touchOffsetX = touch.clientX - rect.left;
+            touchOffsetY = touch.clientY - rect.top;
+
+            touchCloneEl = this.cloneNode(true);
+            touchCloneEl.style.position = 'fixed';
+            touchCloneEl.style.left = `${rect.left}px`;
+            touchCloneEl.style.top = `${rect.top}px`;
+            touchCloneEl.style.width = `${rect.width}px`;
+            touchCloneEl.style.height = `${rect.height}px`;
+            touchCloneEl.style.zIndex = '1000';
+            touchCloneEl.style.pointerEvents = 'none';
+            touchCloneEl.classList.add('shadow-2xl', 'scale-110');
+            document.body.appendChild(touchCloneEl);
+
+            this.style.opacity = '0.3';
+            AudioFX.playPop();
+            speakText(this.dataset.name);
+        }
+
+        function handleTouchMove(e) {
+            if (!touchCloneEl) return;
+            e.preventDefault(); 
+
+            const touch = e.touches[0];
+            const x = touch.clientX - touchOffsetX;
+            const y = touch.clientY - touchOffsetY;
+
+            touchCloneEl.style.left = `${x}px`;
+            touchCloneEl.style.top = `${y}px`;
+
+            const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+            const dropZone = targetEl ? targetEl.closest('.drop-zone') : null;
+
+            document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('drag-over'));
+            if (dropZone) {
+                dropZone.classList.add('drag-over');
+            }
+        }
+
+        function handleTouchEnd(e) {
+            if (!activeDraggedEl) return;
+
+            activeDraggedEl.style.opacity = '1';
+
+            if (touchCloneEl) {
+                const touch = e.changedTouches[0];
+                const targetEl = document.elementFromPoint(touch.clientX, touch.clientY);
+                const dropZone = targetEl ? targetEl.closest('.drop-zone') : null;
+
+                document.querySelectorAll('.drop-zone').forEach(z => z.classList.remove('drag-over'));
+
+                touchCloneEl.remove();
+                touchCloneEl = null;
+
+                if (dropZone) {
+                    checkItemPlacement(activeDraggedEl, dropZone);
+                }
+            }
+
+            activeDraggedEl = null;
+        }
+
+        /* ==========================================================================
+           6. 答對/答錯判斷與教學反饋
+           ========================================================================== */
+
+        function checkItemPlacement(itemEl, boxEl) {
+            const itemCat = itemEl.dataset.category;
+            const itemName = itemEl.dataset.name;
+            const boxCat = boxEl.dataset.category;
+            const boxInfo = CATEGORIES_DB[boxCat];
+
+            if (itemCat === boxCat) {
+                handleCorrectAnswer(itemEl, boxEl, itemName, boxInfo);
+            } else {
+                handleWrongAnswer(boxEl, itemName, boxInfo);
+            }
+        }
+
+        function handleCorrectAnswer(itemEl, boxEl, itemName, boxInfo) {
+            AudioFX.playSuccess();
+
+            boxEl.classList.add('animate-bounce-box');
+            setTimeout(() => boxEl.classList.remove('animate-bounce-box'), 600);
+
+            const countEl = boxEl.querySelector('.collected-count');
+            countEl.textContent = parseInt(countEl.textContent) + 1;
+
+            const itemId = itemEl.dataset.itemId;
+            gameState.currentItems = gameState.currentItems.filter(i => i.id !== itemId);
+            gameState.completedCount++;
+            updateScoreDisplay();
+
+            renderItems();
+
+            showFeedbackModal(
+                true,
+                '答啱啦！',
+                `成功捐贈「${itemName}」！`,
+                `好叻呀！成功將${itemName}捐贈並放入${boxInfo.speech}！`
+            );
+
+            if (gameState.completedCount === gameState.totalScore) {
+                setTimeout(() => {
+                    confetti({
+                        particleCount: 150,
+                        spread: 100,
+                        origin: { y: 0.5 },
+                        colors: ['#FFC107', '#4CAF50', '#03A9F4', '#E91E63']
+                    });
+                    speakText('太好了！完成！你真係一個充滿愛心嘅小朋友！');
+                }, 800);
+            }
+        }
+
+        function handleWrongAnswer(boxEl, itemName, boxInfo) {
+            AudioFX.playError();
+
+            boxEl.classList.add('animate-shake-box');
+            setTimeout(() => boxEl.classList.remove('animate-shake-box'), 400);
+
+            showFeedbackModal(
+                false,
+                '哎呀！',
+                `「${itemName}」不屬於 ${boxInfo.name} 哦，試下別的箱子吧！`,
+                `哎呀！試下第二個箱啦！${itemName}唔係擺喺${boxInfo.speech}架！`
+            );
+        }
+
+        function showFeedbackModal(isSuccess, title, msg, speechTextContent) {
+            DOM.feedbackIcon.textContent = isSuccess ? '🌟' : '🤔';
+            DOM.feedbackTitle.textContent = title;
+            DOM.feedbackTitle.className = `text-4xl sm:text-5xl font-black mb-3 ${isSuccess ? 'text-emerald-600' : 'text-amber-600'}`;
+            DOM.feedbackMsg.textContent = msg;
+            DOM.feedbackCard.className = `bg-white rounded-[2rem] p-8 sm:p-10 max-w-sm w-11/12 text-center shadow-2xl border-8 transform transition-all duration-200 ${isSuccess ? 'border-emerald-300' : 'border-amber-300'}`;
+
+            DOM.feedbackModal.classList.remove('hidden');
+            setTimeout(() => {
+                DOM.feedbackModal.classList.remove('opacity-0', 'pointer-events-none');
+                DOM.feedbackCard.classList.remove('scale-90');
+            }, 10);
+
+            speakText(speechTextContent);
+        }
+
+        function closeFeedbackModal() {
+            DOM.feedbackModal.classList.add('opacity-0', 'pointer-events-none');
+            DOM.feedbackCard.classList.add('scale-90');
+            setTimeout(() => {
+                DOM.feedbackModal.classList.add('hidden');
+            }, 200);
+        }
+
+        DOM.btnCloseFeedback.addEventListener('click', closeFeedbackModal);
+
+        /* ==========================================================================
+           7. 頁面啟動初始化
+           ========================================================================== */
+
+        window.onload = function() {
+            initGame();
+
+            setTimeout(() => {
+                speakText('歡迎來到捐贈小幫手！一齊捐贈物品啦！');
+            }, 500);
+        };
+    </script>
+</body>
+</html>
