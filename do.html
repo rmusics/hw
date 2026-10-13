@@ -114,14 +114,14 @@
         <!-- 頂部標題與功能列 -->
         <header class="max-w-6xl mx-auto w-full bg-white/80 backdrop-blur-md rounded-3xl p-4 shadow-lg border-4 border-white mb-4 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="flex items-center space-x-3 w-full sm:w-auto">
-                <div class="bg-amber-400 p-3 rounded-2xl text-3xl sm:text-4xl shadow-inner cursor-pointer shrink-0" onclick="speakText('捐贈小幫手。捐贈物品時，要放入啱嘅捐贈箱！')" title="點擊發音">
+                <div class="bg-amber-400 p-3 rounded-2xl text-3xl sm:text-4xl shadow-inner cursor-pointer shrink-0" onclick="speakText('捐贈小幫手。捐贈物品時，要放入適合的捐贈箱！')" title="點擊發音">
                     🎁
                 </div>
                 <div>
                     <h1 class="text-2xl sm:text-3xl font-black text-slate-800 flex items-center gap-2">
                         捐贈小幫手
                     </h1>
-                    <p class="text-sm sm:text-base font-bold text-slate-500">捐贈物品時，要放入啱嘅捐贈箱！</p>
+                    <p class="text-sm sm:text-base font-bold text-slate-500">捐贈物品時，要放入適合的捐贈箱！</p>
                 </div>
             </div>
 
@@ -150,7 +150,7 @@
             <section class="bg-white/90 backdrop-blur-md rounded-3xl p-5 shadow-xl border-4 border-amber-300">
                 <div class="flex justify-between items-center mb-3">
                     <h2 class="text-lg sm:text-xl font-black text-amber-900 flex items-center gap-2">
-                        📦 請揀出物品，拉落下面嘅捐贈箱：
+                        📦 請選擇物品，拖拉至適合的捐贈箱：
                     </h2>
                 </div>
 
@@ -186,12 +186,12 @@
                         把我們多出來的玩具和衣服，捐贈給有需要的人。
                     </p>
                     <p class="text-base sm:text-lg font-bold text-sky-600">
-                        大家一起分享，會變得更加快樂！
+                        記得只捐贈乾淨、完好的物品！
                     </p>
                 </div>
 
                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                    <button onclick="speakText('捐贈即係將自己多出嚟嘅玩具同衣服，俾其他有需要嘅人，大家一齊開心！')" class="btn-3d flex-1 py-4 bg-sky-500 hover:bg-sky-600 text-white font-black rounded-2xl text-xl shadow-md flex items-center justify-center gap-2">
+                    <button onclick="speakText('捐贈即係將自己多出嚟嘅玩具同衣服，俾其他有需要嘅人，分享快樂！記得只捐贈乾淨、完好的物品！')" class="btn-3d flex-1 py-4 bg-sky-500 hover:bg-sky-600 text-white font-black rounded-2xl text-xl shadow-md flex items-center justify-center gap-2">
                         <span>🔊</span> 聽聽看
                     </button>
                     <button id="btn-confirm-donation" class="btn-3d flex-1 py-4 bg-emerald-500 hover:bg-emerald-600 text-white font-black rounded-2xl text-xl shadow-md">
@@ -506,7 +506,7 @@
                 DOM.donationModal.classList.remove('opacity-0');
                 DOM.donationCard.classList.remove('scale-90');
             }, 10);
-            speakText('捐贈分享快樂！把我們多出來的玩具和衣服，捐贈給有需要的人。大家一起分享，會變得更加快樂！');
+            speakText('捐贈分享快樂！把我們多出來的玩具和衣服，捐贈給有需要的人。記得只捐贈乾淨、完好的物品！');
         }
 
         function closeDonationModal() {
@@ -681,7 +681,7 @@
 
             showFeedbackModal(
                 true,
-                '答啱啦！',
+                '答對了！',
                 `成功捐贈「${itemName}」！`,
                 `好叻呀！成功將${itemName}捐贈並放入${boxInfo.speech}！`
             );
@@ -708,8 +708,8 @@
             showFeedbackModal(
                 false,
                 '哎呀！',
-                `「${itemName}」不屬於 ${boxInfo.name} 哦，試下別的箱子吧！`,
-                `哎呀！試下第二個箱啦！${itemName}唔係擺喺${boxInfo.speech}架！`
+                `「${itemName}」不屬於 ${boxInfo.name} ，試下其他箱子吧！`,
+                `哎呀！試下第二個箱！${itemName}唔係擺喺${boxInfo.speech}！`
             );
         }
 
